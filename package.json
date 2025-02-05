@@ -1,0 +1,39 @@
+{
+    "name": "judge0-ide",
+    "description": "Free and open-source online code editor and compiler",
+    "version": "3.0.0",
+    "main": "main.js",
+    "author": {
+        "name": "Judge0",
+        "email": "contact@judge0.com"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/judge0/ide.git"
+    },
+    "bugs": {
+        "url": "https://github.com/judge0/ide/issues"
+    },
+    "scripts": {
+        "start": "electron --trace-warnings .",
+        "build": "electron-builder --linux AppImage"
+    },
+    "build": {
+        "appId": "com.judge0.ide",
+        "productName": "Judge0 IDE",
+        "files": [
+            "**/*"
+        ],
+        "linux": {
+            "target": [
+                "AppImage"
+            ],
+            "category": "Development",
+            "icon": "favicons/"
+        }
+    },
+    "devDependencies": {
+        "electron": "^34.0.2",
+        "electron-builder": "^25.1.8"
+    }
+}
