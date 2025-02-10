@@ -3,9 +3,9 @@ import theme from "./theme.js";
 import { sourceEditor } from "./ide.js";
 
 const THREAD = [
-    {
-        role: "system",
-        content: `
+  {
+    role: "system",
+    content: `
 You are an AI assistant integrated into an online code editor.
 Your main job is to help users with their code, but you should also be able to engage in casual conversation.
 
@@ -32,97 +32,96 @@ The following are your guidelines:
 You will always have access to the user's latest code.
 Use this context only when relevant to the user's message.
 If their message is unrelated to the code, focus solely on their conversational intent.
-        `.trim()
-    }
+        `.trim(),
+  },
 ];
 
 document.addEventListener("DOMContentLoaded", function () {
-    document.getElementById("judge0-chat-form").addEventListener("submit", async function (event) {
-        event.preventDefault();
+  document
+    .getElementById("judge0-chat-form")
+    .addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const userInput = document.getElementById("judge0-chat-user-input");
+      const message = userInput.value.trim();
+      if (!message) return;
 
-        const userInput = document.getElementById("judge0-chat-user-input");
-        const userInputValue = userInput.value.trim();
-        if (userInputValue === "") {
-            return;
-        }
+      const messages = document.getElementById("judge0-chat-messages");
+      const userMessage = document.createElement("div");
+      userMessage.className = "judge0-user-message";
+      userMessage.textContent = message;
+      messages.appendChild(userMessage);
 
-        userInput.disabled = true;
+      THREAD.push({
+        role: "user",
+        content: message,
+      });
 
-        const userMessage = document.createElement("div");
-        userMessage.innerText = userInputValue;
-        userMessage.classList.add("ui", "message", "judge0-message", "judge0-user-message");
-        if (!theme.isLight()) {
-            userMessage.classList.add("inverted");
-        }
+      userInput.value = "";
+      userInput.disabled = true;
 
-        const messages = document.getElementById("judge0-chat-messages");
-        messages.appendChild(userMessage);
+      const aiMessage = document.createElement("div");
+      aiMessage.className = "judge0-ai-message loading";
+      messages.appendChild(aiMessage);
+      messages.scrollTop = messages.scrollHeight;
 
-        userInput.value = "";
-        messages.scrollTop = messages.scrollHeight;
-
-        THREAD.push({
-            role: "user",
-            content: `
-User's code:
-${sourceEditor.getValue()}
-
-User's message:
-${userInputValue}
-`.trim()
-        });
-
-
-        const aiMessage = document.createElement("div");
-        aiMessage.classList.add("ui", "basic", "segment", "judge0-message", "loading");
-        if (!theme.isLight()) {
-            aiMessage.classList.add("inverted");
-        }
-        messages.appendChild(aiMessage);
-        messages.scrollTop = messages.scrollHeight;
-
-        const aiResponse = await puter.ai.chat(THREAD, {
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer YOUR_API_KEY`,
+          },
+          body: JSON.stringify({
             model: document.getElementById("judge0-chat-model-select").value,
-        });
-        let aiResponseValue = aiResponse.toString();
-        if (typeof aiResponseValue !== "string") {
-            aiResponseValue = aiResponseValue.map(v => v.text).join("\n");
+            messages: THREAD,
+          }),
         }
+      );
 
-        THREAD.push({
-            role: "assistant",
-            content: aiResponseValue
-        });
+      const aiResponse = await response.json();
+      let aiResponseValue = aiResponse.choices[0].message.content;
 
-        aiMessage.innerHTML = DOMPurify.sanitize(aiResponseValue);
-        renderMathInElement(aiMessage, {
-            delimiters: [
-                { left: "\\(", right: "\\)", display: false },
-                { left: "\\[", right: "\\]", display: true }
-            ]
-        });
-        aiMessage.innerHTML = marked.parse(aiMessage.innerHTML);
+      if (Array.isArray(aiResponseValue)) {
+        aiResponseValue = aiResponseValue.map((v) => v.text).join("\n");
+      }
 
-        aiMessage.classList.remove("loading");
-        messages.scrollTop = messages.scrollHeight;
+      THREAD.push({
+        role: "assistant",
+        content: aiResponseValue,
+      });
 
-        userInput.disabled = false;
-        userInput.focus();
+      aiMessage.innerHTML = DOMPurify.sanitize(aiResponseValue);
+      renderMathInElement(aiMessage, {
+        delimiters: [
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true },
+        ],
+      });
+      aiMessage.innerHTML = marked.parse(aiMessage.innerHTML);
+
+      aiMessage.classList.remove("loading");
+      messages.scrollTop = messages.scrollHeight;
+
+      userInput.disabled = false;
+      userInput.focus();
     });
 
-    document.getElementById("judge0-chat-model-select").addEventListener("change", function () {
-        const userInput = document.getElementById("judge0-chat-user-input");
-        userInput.placeholder = `Message ${this.value}`;
+  document
+    .getElementById("judge0-chat-model-select")
+    .addEventListener("change", function () {
+      const userInput = document.getElementById("judge0-chat-user-input");
+      userInput.placeholder = `Message ${this.value}`;
     });
 });
 
 document.addEventListener("keydown", function (e) {
-    if (e.metaKey || e.ctrlKey) {
-        switch (e.key) {
-            case "p":
-                e.preventDefault();
-                document.getElementById("judge0-chat-user-input").focus();
-                break;
-        }
+  if (e.metaKey || e.ctrlKey) {
+    switch (e.key) {
+      case "p":
+        e.preventDefault();
+        document.getElementById("judge0-chat-user-input").focus();
+        break;
     }
+  }
 });
