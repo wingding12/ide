@@ -3,9 +3,9 @@ import theme from "./theme.js";
 import { sourceEditor } from "./ide.js";
 
 const THREAD = [
-    {
-        role: "system",
-        content: `
+  {
+    role: "system",
+    content: `
 You are an AI assistant integrated into an online code editor.
 Your main job is to help users with their code, but you should also be able to engage in casual conversation.
 
@@ -32,97 +32,144 @@ The following are your guidelines:
 You will always have access to the user's latest code.
 Use this context only when relevant to the user's message.
 If their message is unrelated to the code, focus solely on their conversational intent.
-        `.trim()
-    }
+        `.trim(),
+  },
 ];
 
 document.addEventListener("DOMContentLoaded", function () {
-    document.getElementById("judge0-chat-form").addEventListener("submit", async function (event) {
-        event.preventDefault();
+  const chatForm = document.getElementById("chat-form");
+  const chatMessages = document.getElementById("chat-messages");
+  const userInput = document.getElementById("chat-user-input");
 
-        const userInput = document.getElementById("judge0-chat-user-input");
-        const userInputValue = userInput.value.trim();
-        if (userInputValue === "") {
-            return;
-        }
+  chatForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    const message = userInput.value.trim();
+    if (message) {
+      addMessageToChat("user", message);
+      sendToAI(message);
+      userInput.value = "";
+    }
+  });
 
-        userInput.disabled = true;
+  function addMessageToChat(sender, message) {
+    const messageElement = document.createElement("div");
+    messageElement.className = `comment ${sender}`;
+    messageElement.innerHTML = `<div class="content"><div class="text">${message}</div></div>`;
+    chatMessages.appendChild(messageElement);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
 
-        const userMessage = document.createElement("div");
-        userMessage.innerText = userInputValue;
-        userMessage.classList.add("ui", "message", "judge0-message", "judge0-user-message");
-        if (!theme.isLight()) {
-            userMessage.classList.add("inverted");
-        }
+  function sendToAI(message) {
+    // Simulate AI processing
+    const aiResponse = processAIMessage(message);
+    addMessageToChat("ai", aiResponse);
+  }
 
-        const messages = document.getElementById("judge0-chat-messages");
-        messages.appendChild(userMessage);
+  function processAIMessage(message) {
+    // Placeholder for AI logic
+    return `AI: You asked: ${message}`;
+  }
 
-        userInput.value = "";
-        messages.scrollTop = messages.scrollHeight;
+  document
+    .getElementById("judge0-chat-form")
+    .addEventListener("submit", async function (event) {
+      event.preventDefault();
 
-        THREAD.push({
-            role: "user",
-            content: `
+      const userInput = document.getElementById("judge0-chat-user-input");
+      const userInputValue = userInput.value.trim();
+      if (userInputValue === "") {
+        return;
+      }
+
+      userInput.disabled = true;
+
+      const userMessage = document.createElement("div");
+      userMessage.innerText = userInputValue;
+      userMessage.classList.add(
+        "ui",
+        "message",
+        "judge0-message",
+        "judge0-user-message"
+      );
+      if (!theme.isLight()) {
+        userMessage.classList.add("inverted");
+      }
+
+      const messages = document.getElementById("judge0-chat-messages");
+      messages.appendChild(userMessage);
+
+      userInput.value = "";
+      messages.scrollTop = messages.scrollHeight;
+
+      THREAD.push({
+        role: "user",
+        content: `
 User's code:
 ${sourceEditor.getValue()}
 
 User's message:
 ${userInputValue}
-`.trim()
-        });
+`.trim(),
+      });
 
+      const aiMessage = document.createElement("div");
+      aiMessage.classList.add(
+        "ui",
+        "basic",
+        "segment",
+        "judge0-message",
+        "loading"
+      );
+      if (!theme.isLight()) {
+        aiMessage.classList.add("inverted");
+      }
+      messages.appendChild(aiMessage);
+      messages.scrollTop = messages.scrollHeight;
 
-        const aiMessage = document.createElement("div");
-        aiMessage.classList.add("ui", "basic", "segment", "judge0-message", "loading");
-        if (!theme.isLight()) {
-            aiMessage.classList.add("inverted");
-        }
-        messages.appendChild(aiMessage);
-        messages.scrollTop = messages.scrollHeight;
+      const aiResponse = await puter.ai.chat(THREAD, {
+        model: document.getElementById("judge0-chat-model-select").value,
+      });
+      let aiResponseValue = aiResponse.toString();
+      if (typeof aiResponseValue !== "string") {
+        aiResponseValue = aiResponseValue.map((v) => v.text).join("\n");
+      }
 
-        const aiResponse = await puter.ai.chat(THREAD, {
-            model: document.getElementById("judge0-chat-model-select").value,
-        });
-        let aiResponseValue = aiResponse.toString();
-        if (typeof aiResponseValue !== "string") {
-            aiResponseValue = aiResponseValue.map(v => v.text).join("\n");
-        }
+      THREAD.push({
+        role: "assistant",
+        content: aiResponseValue,
+      });
 
-        THREAD.push({
-            role: "assistant",
-            content: aiResponseValue
-        });
+      aiMessage.innerHTML = DOMPurify.sanitize(aiResponseValue);
+      renderMathInElement(aiMessage, {
+        delimiters: [
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\[", right: "\\]", display: true },
+        ],
+      });
+      aiMessage.innerHTML = marked.parse(aiMessage.innerHTML);
 
-        aiMessage.innerHTML = DOMPurify.sanitize(aiResponseValue);
-        renderMathInElement(aiMessage, {
-            delimiters: [
-                { left: "\\(", right: "\\)", display: false },
-                { left: "\\[", right: "\\]", display: true }
-            ]
-        });
-        aiMessage.innerHTML = marked.parse(aiMessage.innerHTML);
+      aiMessage.classList.remove("loading");
+      messages.scrollTop = messages.scrollHeight;
 
-        aiMessage.classList.remove("loading");
-        messages.scrollTop = messages.scrollHeight;
-
-        userInput.disabled = false;
-        userInput.focus();
+      userInput.disabled = false;
+      userInput.focus();
     });
 
-    document.getElementById("judge0-chat-model-select").addEventListener("change", function () {
-        const userInput = document.getElementById("judge0-chat-user-input");
-        userInput.placeholder = `Message ${this.value}`;
+  document
+    .getElementById("judge0-chat-model-select")
+    .addEventListener("change", function () {
+      const userInput = document.getElementById("judge0-chat-user-input");
+      userInput.placeholder = `Message ${this.value}`;
     });
 });
 
 document.addEventListener("keydown", function (e) {
-    if (e.metaKey || e.ctrlKey) {
-        switch (e.key) {
-            case "p":
-                e.preventDefault();
-                document.getElementById("judge0-chat-user-input").focus();
-                break;
-        }
+  if (e.metaKey || e.ctrlKey) {
+    switch (e.key) {
+      case "p":
+        e.preventDefault();
+        document.getElementById("judge0-chat-user-input").focus();
+        break;
     }
+  }
 });
