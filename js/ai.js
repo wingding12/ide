@@ -2,40 +2,6 @@
 import theme from "./theme.js";
 import { sourceEditor } from "./ide.js";
 
-const THREAD = [
-  {
-    role: "system",
-    content: `
-You are an AI assistant integrated into an online code editor.
-Your main job is to help users with their code, but you should also be able to engage in casual conversation.
-
-The following are your guidelines:
-1. **If the user asks for coding help**:
-   - Always consider the user's provided code.
-   - Analyze the code and provide relevant help (debugging, optimization, explanation, etc.).
-   - Make sure to be specific and clear when explaining things about their code.
-
-2. **If the user asks a casual question or makes a casual statement**:
-   - Engage in friendly, natural conversation.
-   - Do not reference the user's code unless they bring it up or ask for help.
-   - Be conversational and polite.
-
-3. **If the user's message is ambiguous or unclear**:
-   - Politely ask for clarification or more details to better understand the user's needs.
-   - If the user seems confused about something, help guide them toward what they need.
-
-4. **General Behavior**:
-   - Always respond in a helpful, friendly, and professional tone.
-   - Never assume the user's intent. If unsure, ask clarifying questions.
-   - Keep the conversation flowing naturally, even if the user hasn't directly asked about their code.
-
-You will always have access to the user's latest code.
-Use this context only when relevant to the user's message.
-If their message is unrelated to the code, focus solely on their conversational intent.
-        `.trim(),
-  },
-];
-
 document.addEventListener("DOMContentLoaded", function () {
   document
     .getElementById("judge0-chat-form")
@@ -51,11 +17,6 @@ document.addEventListener("DOMContentLoaded", function () {
       userMessage.textContent = message;
       messages.appendChild(userMessage);
 
-      THREAD.push({
-        role: "user",
-        content: message,
-      });
-
       userInput.value = "";
       userInput.disabled = true;
 
@@ -64,47 +25,50 @@ document.addEventListener("DOMContentLoaded", function () {
       messages.appendChild(aiMessage);
       messages.scrollTop = messages.scrollHeight;
 
-      const response = await fetch(
-        "https://api.openai.com/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer YOUR_API_KEY`,
-          },
-          body: JSON.stringify({
-            model: document.getElementById("judge0-chat-model-select").value,
-            messages: THREAD,
-          }),
+      try {
+        // Get the code context
+        const codeContext = sourceEditor?.getValue() || "";
+        const selectedModel = document.getElementById(
+          "judge0-chat-model-select"
+        ).value;
+
+        // Format the prompt with code context
+        const prompt = `If there's code context, analyze it and help the user. Here's the context:
+
+${codeContext}
+
+User question: ${message}`;
+
+        // Use Puter's simple chat method
+        const response = await puter.ai.chat(prompt);
+
+        if (response && response.text) {
+          // Use Puter's print method to format the response
+          const formattedResponse = puter.print(response.text);
+          aiMessage.innerHTML = DOMPurify.sanitize(
+            marked.parse(formattedResponse || "No response received.")
+          );
+        } else {
+          aiMessage.innerHTML = "No response received.";
         }
-      );
 
-      const aiResponse = await response.json();
-      let aiResponseValue = aiResponse.choices[0].message.content;
-
-      if (Array.isArray(aiResponseValue)) {
-        aiResponseValue = aiResponseValue.map((v) => v.text).join("\n");
+        renderMathInElement(aiMessage, {
+          delimiters: [
+            { left: "\\(", right: "\\)", display: false },
+            { left: "\\[", right: "\\]", display: true },
+          ],
+        });
+        aiMessage.classList.remove("loading");
+        messages.scrollTop = messages.scrollHeight;
+      } catch (error) {
+        console.error("Chat error:", error);
+        aiMessage.innerHTML =
+          "Sorry, there was an error processing your request.";
+        aiMessage.classList.remove("loading");
+      } finally {
+        userInput.disabled = false;
+        userInput.focus();
       }
-
-      THREAD.push({
-        role: "assistant",
-        content: aiResponseValue,
-      });
-
-      aiMessage.innerHTML = DOMPurify.sanitize(aiResponseValue);
-      renderMathInElement(aiMessage, {
-        delimiters: [
-          { left: "\\(", right: "\\)", display: false },
-          { left: "\\[", right: "\\]", display: true },
-        ],
-      });
-      aiMessage.innerHTML = marked.parse(aiMessage.innerHTML);
-
-      aiMessage.classList.remove("loading");
-      messages.scrollTop = messages.scrollHeight;
-
-      userInput.disabled = false;
-      userInput.focus();
     });
 
   document
