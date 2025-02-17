@@ -28,9 +28,6 @@ document.addEventListener("DOMContentLoaded", function () {
       try {
         // Get the code context
         const codeContext = sourceEditor?.getValue() || "";
-        const selectedModel = document.getElementById(
-          "judge0-chat-model-select"
-        ).value;
 
         // Format the prompt with code context
         const prompt = `If there's code context, analyze it and help the user. Here's the context:
@@ -39,27 +36,48 @@ ${codeContext}
 
 User question: ${message}`;
 
-        // Use Puter's simple chat method
-        const response = await puter.ai.chat(prompt);
+        // Use Puter's chat method as shown in docs
+        puter.ai
+          .chat(prompt)
+          .then((response) => {
+            console.log("Puter response:", response); // Debugging log
 
-        if (response && response.text) {
-          // Use Puter's print method to format the response
-          const formattedResponse = puter.print(response.text);
-          aiMessage.innerHTML = DOMPurify.sanitize(
-            marked.parse(formattedResponse || "No response received.")
-          );
-        } else {
-          aiMessage.innerHTML = "No response received.";
-        }
+            // Attempt to extract the response text
+            let responseText = "";
 
-        renderMathInElement(aiMessage, {
-          delimiters: [
-            { left: "\\(", right: "\\)", display: false },
-            { left: "\\[", right: "\\]", display: true },
-          ],
-        });
-        aiMessage.classList.remove("loading");
-        messages.scrollTop = messages.scrollHeight;
+            if (typeof response === "object") {
+              console.log("Response is an object:", response);
+              // Check for common properties that might contain the text
+              if (response.text) {
+                responseText = response.text;
+              } else if (response.message) {
+                responseText = response.message;
+              } else if (response.content) {
+                responseText = response.content;
+              } else {
+                aiMessage.innerHTML =
+                  "Response object has no recognizable text property.";
+                return;
+              }
+            } else if (typeof response === "string") {
+              responseText = response;
+            } else {
+              aiMessage.innerHTML = "Unexpected response format.";
+              return;
+            }
+
+            aiMessage.innerHTML = DOMPurify.sanitize(
+              marked.parse(responseText)
+            );
+            aiMessage.classList.remove("loading");
+            messages.scrollTop = messages.scrollHeight;
+          })
+          .catch((error) => {
+            console.error("Chat error:", error);
+            aiMessage.innerHTML =
+              "Sorry, there was an error processing your request.";
+            aiMessage.classList.remove("loading");
+          });
       } catch (error) {
         console.error("Chat error:", error);
         aiMessage.innerHTML =
