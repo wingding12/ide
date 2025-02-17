@@ -767,7 +767,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       .getValueInRange(event.selection);
     if (selectedText) {
       const chatInput = document.getElementById("judge0-chat-user-input");
-      chatInput.value = `Discuss this code: ${selectedText}`;
+      chatInput.value = `${selectedText}`;
       chatInput.focus();
     }
   });
